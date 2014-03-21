@@ -39,6 +39,9 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <errno.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include "ssmtp.h"
 
 #define CONNECT_TIMEOUT
@@ -1197,7 +1200,7 @@ out_of_loop:
 						continue;
 					}
 					s = -1;
-					log_event(LOG_ERR, "connect(%s:%d) timed out", host, port);
+					log_event(LOG_ERR, "connect(%s(%s):%d) timed out", host, inet_ntoa(name.sin_addr), port);
 					goto out_of_loop;
 				}
 			case EINTR:
@@ -1211,13 +1214,13 @@ out_of_loop:
 
 out_of_loop:
 	if (s < 0) {
-		log_event(LOG_ERR, "Unable to connect to %s:%d", host, port);
+		log_event(LOG_ERR, "Unable to connect to %s(%s):%d", host, inet_ntoa(name.sin_addr), port);
 		return(-1);
 	}
 
 #else
 	if(connect(s, (struct sockaddr *)&name, namelen) < 0) {
-		log_event(LOG_ERR, "Unable to connect to %s:%d", host, port);
+		log_event(LOG_ERR, "Unable to connect to %s(%s):%d", host, inet_ntoa(name.sin_addr), port);
 		return(-1);
 	}
 #endif
@@ -1243,12 +1246,12 @@ out_of_loop:
 				}
 				else
 				{
-					log_event(LOG_ERR, "Invalid response: %s (%s)", buf, hostname);
+					log_event(LOG_ERR, "Invalid response: %s from %s (%s)", buf, hostname, inet_ntoa(name.sin_addr));
 				}
 			}
 			else
 			{
-				log_event(LOG_ERR, "Invalid response SMTP Server (STARTTLS)");
+				log_event(LOG_ERR, "Invalid response SMTP Server (STARTTLS) from %s (%s)", hostname, inet_ntoa(name.sin_addr));
 				return(-1);
 			}
 			use_tls=True; /* now continue as normal for SSL */
