@@ -78,6 +78,7 @@ char *prog = NULL;
 char *root = NULL;
 char *tls_cert = "/etc/ssl/certs/ssmtp.pem";	/* Default Certificate */
 char *uad = NULL;
+char *server_ip = "unknown";
 
 int connect_timeout = 3000; /* 3 sec */
 int read_timeout = 3000; /* 3 sec */
@@ -154,7 +155,7 @@ void log_event(int priority, char *format, ...)
 	FILE *fp;
 
 	if((fp = fopen("/tmp/ssmtp.log", "a")) != (FILE *)NULL) {
-		(void)fprintf(fp, "%s\n", buf);
+		(void)fprintf(fp, "[IP: %s] %s\n", server_ip, buf);
 		(void)fclose(fp);
 	}
 	else {
@@ -247,7 +248,7 @@ void die(char *format, ...)
 	(void)vsnprintf(buf, BUF_SZ, format, ap);
 	va_end(ap);
 
-	(void)fprintf(stderr, "%s: %s\n", prog, buf);
+	(void)fprintf(stderr, "[IP: %s] %s: %s\n", server_ip, prog, buf);
 	log_event(LOG_ERR, "%s", buf);
 
 	/* Send message to dead.letter */
@@ -1036,6 +1037,7 @@ smtp_open() -- Open connection to a remote SMTP listener
 int smtp_open(char *host, int port)
 {
 	int fd_flags;
+	char *ip;
 #ifdef INET6
 	struct addrinfo hints, *ai0, *ai;
 	char servname[NI_MAXSERV];
@@ -1173,6 +1175,10 @@ out_of_loop:
 	name.sin_addr.s_addr = ((struct in_addr *)(hent->h_addr))->s_addr;
 	name.sin_family = hent->h_addrtype;
 	name.sin_port = htons(port);
+	ip = inet_ntoa(name.sin_addr);
+	if (ip) {
+		server_ip = strdup(ip);
+	}
 
 	namelen = sizeof(struct sockaddr_in);
 
@@ -1200,7 +1206,7 @@ out_of_loop:
 						continue;
 					}
 					s = -1;
-					log_event(LOG_ERR, "connect(%s(%s):%d) timed out", host, inet_ntoa(name.sin_addr), port);
+					log_event(LOG_ERR, "connect(%s:%d) timed out", host, port);
 					goto out_of_loop;
 				}
 			case EINTR:
@@ -1214,13 +1220,13 @@ out_of_loop:
 
 out_of_loop:
 	if (s < 0) {
-		log_event(LOG_ERR, "Unable to connect to %s(%s):%d", host, inet_ntoa(name.sin_addr), port);
+		log_event(LOG_ERR, "Unable to connect to %s:%d", host, port);
 		return(-1);
 	}
 
 #else
 	if(connect(s, (struct sockaddr *)&name, namelen) < 0) {
-		log_event(LOG_ERR, "Unable to connect to %s(%s):%d", host, inet_ntoa(name.sin_addr), port);
+		log_event(LOG_ERR, "Unable to connect to %s:%d", host, port);
 		return(-1);
 	}
 #endif
@@ -1246,12 +1252,12 @@ out_of_loop:
 				}
 				else
 				{
-					log_event(LOG_ERR, "Invalid response: %s from %s (%s)", buf, hostname, inet_ntoa(name.sin_addr));
+					log_event(LOG_ERR, "Invalid response: %s from %s", buf, hostname);
 				}
 			}
 			else
 			{
-				log_event(LOG_ERR, "Invalid response SMTP Server (STARTTLS) from %s (%s)", hostname, inet_ntoa(name.sin_addr));
+				log_event(LOG_ERR, "Invalid response SMTP Server (STARTTLS) from %s", hostname);
 				return(-1);
 			}
 			use_tls=True; /* now continue as normal for SSL */
