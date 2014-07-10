@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <pwd.h>
 
-#define BUF_SZ  (1024 * 2)	/* A pretty large buffer, but not outrageous */
+#define BUF_SZ  (1024 * 64)	/* A pretty large buffer, but not outrageous */
 
 #define MAXWAIT (10 * 60)	/* Maximum wait between commands, in seconds */
 #define MEDWAIT (5 * 60)
