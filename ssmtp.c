@@ -387,28 +387,18 @@ char *append_domain(char *str)
 /*
 standardise() -- Trim off '\n's and double leading dots
 */
-void standardise(char *str)
+int standardise(char *str)
 {
-	size_t sl;
 	char *p;
 
 	if((p = strchr(str, '\n'))) {
 		*p = '\0';
 	}
 
-	/* Any line beginning with a dot has an additional dot inserted;
-	not just a line consisting solely of a dot. Thus we have to slide
-	the buffer down one */
-	sl = strlen(str);
-
 	if(*str == '.') {
-		if((sl + 2) > BUF_SZ) {
-			die("standardise() -- Buffer overflow");
-		}
-		(void)memmove((str + 1), str, (sl + 1));	/* Copy trailing \0 */
-
-		*str = '.';
+		return 1;
 	}
+	return 0;
 }
 
 /*
@@ -1716,9 +1706,11 @@ int ssmtp(char *argv[])
 
 	while(fgets(buf, sizeof(buf), stdin)) {
 		/* Trim off \n, double leading .'s */
-		standardise(buf);
-
-		smtp_write(sock, "%s", buf);
+		if (standardise(buf)) {
+			smtp_write(sock, ".%s", buf);
+		} else {
+			smtp_write(sock, "%s", buf);
+		}
 
 		(void)alarm((unsigned) MEDWAIT);
 	}
